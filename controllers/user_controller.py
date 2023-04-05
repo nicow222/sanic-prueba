@@ -2,6 +2,7 @@ from sanic import Blueprint, response
 from services.user_service import (create_new_user, get_all_users, get_user_by_email,
                                     get_user_by_id, update_user_by_id, delete_user_by_id)
 from sanic_jwt.decorators import protected
+from config.rabbitmq import channel
 
 user_routes = Blueprint('user', url_prefix='/users/')
 
@@ -14,7 +15,7 @@ async def get_users(request):
 
 
 @user_routes.route('/<user_id>', methods=['GET'])
-@protected()
+
 async def get_user(request, user_id):
     user = get_user_by_id(user_id)
     if user:
@@ -34,12 +35,17 @@ async def get_user_email(request):
 
 
 @user_routes.route('/', methods=['POST'])
-@protected()
+
 async def create_user(request):
     user = request.json
     created_user = create_new_user(user.get('email'), user.get('password'), user.get('name'))
     if isinstance(created_user,response.JSONResponse):
         return created_user
+    # Declarar la cola de RabbitMQ
+    channel.queue_declare(queue='users_queue')
+    # Publicar un mensaje en la cola de RabbitMQ con el ID del usuario recién creado
+    channel.basic_publish(exchange='', routing_key='users_queue', body=str(created_user._id))
+
     return response.json(created_user.to_dict(), status=201)
 
 
