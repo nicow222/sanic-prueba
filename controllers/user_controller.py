@@ -2,7 +2,7 @@ from sanic import Blueprint, response
 from services.user_service import (create_new_user, get_all_users, get_user_by_email,
                                     get_user_by_id, update_user_by_id, delete_user_by_id)
 from sanic_jwt.decorators import protected
-from config.rabbitmq import channel
+from config.rabbitmq import publish_rabbitmq
 
 user_routes = Blueprint('user', url_prefix='/users/')
 
@@ -10,7 +10,7 @@ user_routes = Blueprint('user', url_prefix='/users/')
 @user_routes.route('/', methods=['GET'])
 @protected()
 async def get_users(request):
-    users = get_all_users()
+    users = await get_all_users()
     return response.json([user.to_dict() for user in users])
 
 
@@ -27,7 +27,7 @@ async def get_user(request, user_id):
 @user_routes.route('/obtener/', methods=['POST'])
 @protected()
 async def get_user_email(request):
-    user = get_user_by_email(request.json.get('email',None))
+    user = await get_user_by_email(request.json.get('email',None))
     if user:
         return response.json(user.to_dict())
     else:
@@ -38,22 +38,20 @@ async def get_user_email(request):
 
 async def create_user(request):
     user = request.json
-    created_user = create_new_user(user.get('email'), user.get('password'), user.get('name'))
+    created_user = await create_new_user(user.get('email'), user.get('password'), user.get('name'))
     if isinstance(created_user,response.JSONResponse):
-        return created_user
-    # Declarar la cola de RabbitMQ
-    channel.queue_declare(queue='users_queue')
+        return created_user    
+    user_dicc = created_user.to_dict()
     # Publicar un mensaje en la cola de RabbitMQ con el ID del usuario recién creado
-    channel.basic_publish(exchange='', routing_key='users_queue', body=str(created_user._id))
-
-    return response.json(created_user.to_dict(), status=201)
+    await publish_rabbitmq('users_queue',user_dicc['_id'])
+    return response.json(user_dicc, status=201)
 
 
 @user_routes.route('/<user_id>/', methods=['PUT'])
 @protected()
 async def update_user(request, user_id):
     user = request.json
-    updated_user = update_user_by_id(user_id, user.get('name'), user.get('email'), user.get('password'))
+    updated_user = await update_user_by_id(user_id, user.get('name'), user.get('email'), user.get('password'))
     if updated_user:
         return response.json(updated_user.to_dict())
     else:
@@ -63,7 +61,7 @@ async def update_user(request, user_id):
 @user_routes.route('/<user_id>/', methods=['DELETE'])
 @protected()
 async def delete_user(request, user_id):
-    deleted = delete_user_by_id(user_id)
+    deleted = await delete_user_by_id(user_id)
     if deleted:
         return response.text('User deleted', status=204)
     else:

@@ -10,7 +10,10 @@ class User:
 
     @classmethod
     def from_dict(cls, user_dict):
-        user = cls(user_dict["email"], user_dict["password"], user_dict["name"])
+        user = cls(
+            user_dict["email"],
+            user_dict["password"],
+            user_dict["name"])
         user._id = ObjectId(user_dict["_id"])
         return user
 
