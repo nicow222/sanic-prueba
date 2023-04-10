@@ -1,7 +1,7 @@
 from aio_pika import connect_robust, Message
 import os
 
-rabbitmq_host = os.environ.get('rabbitmq', '127.0.0.1')
+rabbitmq_host = os.environ.get('RABBITMQ_HOST', '127.0.0.1')
 
 async def publish_rabbitmq(queue,body_message):
     # Conectar al servidor RabbitMQ
