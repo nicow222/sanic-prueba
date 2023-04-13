@@ -17,7 +17,7 @@ async def get_users(request):
 @user_routes.route('/<user_id>', methods=['GET'])
 
 async def get_user(request, user_id):
-    user = get_user_by_id(user_id)
+    user = await get_user_by_id(user_id)
     if user:
         return response.json(user.to_dict())
     else:
@@ -25,9 +25,9 @@ async def get_user(request, user_id):
 
 
 @user_routes.route('/obtener/', methods=['POST'])
-@protected()
 async def get_user_email(request):
-    user = await get_user_by_email(request.json.get('email',None))
+
+    user = await get_user_by_email(request.json.get('email') if request.json else None)
     if user:
         return response.json(user.to_dict())
     else:
@@ -37,7 +37,7 @@ async def get_user_email(request):
 @user_routes.route('/', methods=['POST'])
 
 async def create_user(request):
-    user = request.json
+    user = request.json if request.json else {}
     created_user = await create_new_user(user.get('email'), user.get('password'), user.get('name'))
     if isinstance(created_user,response.JSONResponse):
         return created_user    
@@ -50,7 +50,7 @@ async def create_user(request):
 @user_routes.route('/<user_id>/', methods=['PUT'])
 @protected()
 async def update_user(request, user_id):
-    user = request.json
+    user = request.json if request.json else {}
     updated_user = await update_user_by_id(user_id, user.get('name'), user.get('email'), user.get('password'))
     if updated_user:
         return response.json(updated_user.to_dict())
